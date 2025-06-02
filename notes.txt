@@ -1,0 +1,22 @@
+Shifted these initial notes will try to write down flow here and smaller comments in code:
+
+    # we'll first need to fetch and get all the data for the audit to be done
+    """1. Smart Contract(s) itself
+            - either by fetching it through etherscan (for staring) via address (if its verified) (will add it later)
+            - either by getting it from user itself ##### would be better is unverifeid/ undeloyed as well (firstly)
+       2. ABI code ??
+       3. ByteCode if required ??
+    """
+
+    # - - - - -> -> -> we'll use class structure (suggested by GPT)
+
+    #lets just first take input files from user.
+
+__________________________
+
+Now that we have our files we now perform
+    - Static Analysis on it first (to hold on to some issues)
+    - Slither
+    - (will try if we can use solidity: metrics in report or here)
+
+    > for this static analyzer i think another class should be used instead ?

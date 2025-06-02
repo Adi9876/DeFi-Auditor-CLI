@@ -1,2 +1,3 @@
 dotenv
 argparse
+slither-analyzer==0.9.3
