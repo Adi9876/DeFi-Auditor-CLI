@@ -45,7 +45,6 @@ class DefiAuditor:
         except:
             print(f"Error here")
 
-
     async def test_analyzer(
         self,
         paths: str,
@@ -64,17 +63,17 @@ class DefiAuditor:
             contract_analyses = []
             for contract_file in all_contract_files:
                 print(f"Analyzing {contract_file}...")
-                
-                with open(contract_file, 'r') as f:
+
+                with open(contract_file, "r") as f:
                     source_code = f.read()
-                
-                self.static_analyzer = StaticAnalyzer(
-                    source_code,
-                    self.chain
-                )
+                    self.static_analyzer = StaticAnalyzer(contract_file, self.chain)
+                    vulns = self.static_analyzer.analyze_vulnerabilities()
+                    print(f"Vulnerabilities for {contract_file}:\n{vulns}")
+                    contract_analyses.append({contract_file: vulns})
+
             return contract_analyses
-        except:
-            print(f"Error here")
+        except Exception as e:
+            print(f"Error here", str(e))
 
 
 async def main():
@@ -100,6 +99,8 @@ async def main():
     contract_files = await auditor.test_file_fetch(args.files)
     for i in contract_files:
         print("we have", i)
+
+    await auditor.test_analyzer(args.files)
 
     await asyncio.sleep(0.1)
 
