@@ -5,9 +5,10 @@ from slither.detectors.abstract_detector import AbstractDetector
 from slither.utils.output import Output
 import inspect
 
+
 class StaticAnalyzer:
 
-    def __init__(self,source_code_path: str = "", chain: str = "ethereum") -> None:
+    def __init__(self, source_code_path: str = "", chain: str = "ethereum") -> None:
         self.chain = chain
         self.source_code_path = source_code_path
         self._initialize_slither()
@@ -22,51 +23,49 @@ class StaticAnalyzer:
     def analyze_vulnerabilities(self) -> Dict[str, List[Dict]]:
         if not self.slither:
             print("Slither not initialized")
-            return {
-                "critical": [],
-                "high": [],
-                "medium": [],
-                "low": []
-            }
+            return {"critical": [], "high": [], "medium": [], "low": []}
 
-        vulnerabilities = {
-            "critical": [],
-            "high": [],
-            "medium": [],
-            "low": []
-        }
+        vulnerabilities = {"critical": [], "high": [], "medium": [], "low": []}
 
-        #improve: working for now but need to fix this mess
+        # improve: working for now but need to fix this mess
 
-        detector_classes = [getattr(all_detectors, name) for name in dir(all_detectors) 
-                          if isinstance(getattr(all_detectors, name), type) 
-                          and issubclass(getattr(all_detectors, name), AbstractDetector)
-                          and getattr(all_detectors, name) != AbstractDetector]
+        detector_classes = [
+            getattr(all_detectors, name)
+            for name in dir(all_detectors)
+            if isinstance(getattr(all_detectors, name), type)
+            and issubclass(getattr(all_detectors, name), AbstractDetector)
+            and getattr(all_detectors, name) != AbstractDetector
+        ]
 
         for detector_class in detector_classes:
             try:
                 sig = inspect.signature(detector_class.__init__)
                 params = list(sig.parameters.keys())
                 if len(params) == 4:
-                    detector_instance = detector_class(self.slither.compilation_units[0], self.slither, None)
+                    detector_instance = detector_class(
+                        self.slither.compilation_units[0], self.slither, None
+                    )
                 elif len(params) == 3:
                     detector_instance = detector_class(self.slither, None)
                 elif len(params) == 2:
                     detector_instance = detector_class(None)
                 else:
-                    print(f"Unknown constructor signature for {detector_class.__name__}: {params}")
+                    print(
+                        f"Unknown constructor signature for {detector_class.__name__}: {params}"
+                    )
                     continue
                 results = detector_instance.detect()
                 for result in results:
-                    print("result here:: ",result,"\n")
                     severity = self._determine_severity(result)
-                    vulnerabilities[severity].append({
-                        "name": result.get("check", ""),
-                        "description": result.get("description", ""),
-                        "impact": result.get("impact", ""),
-                        "confidence": result.get("confidence", ""),
-                        "locations": result.get("locations", [])
-                    })
+                    vulnerabilities[severity].append(
+                        {
+                            "name": result.get("check", ""),
+                            "description": result.get("description", ""),
+                            "impact": result.get("impact", ""),
+                            "confidence": result.get("confidence", ""),
+                            "locations": result.get("locations", []),
+                        }
+                    )
             except Exception as e:
                 print(f"Error running detector {detector_class.__name__}: {str(e)}")
 
@@ -76,7 +75,7 @@ class StaticAnalyzer:
         impact = result["impact"]
         confidence = result["confidence"]
 
-        #improve: in nexts commits
+        # improve: in nexts commits
         if impact == "High" and confidence == "High":
             return "critical"
         elif impact == "High" or (impact == "Medium" and confidence == "High"):
@@ -86,6 +85,100 @@ class StaticAnalyzer:
         else:
             return "low"
 
+    def analyze_gas_optimization(self) -> List[Dict]:
+
+        if not self.slither:
+            print("slither not initilaized ")
+
+        optimizations = []
+        for contract in self.slither.contracts:
+
+            self._analyze_storage_usage(contract, optimizations)
+
+        return optimizations
+
+    def _analyze_storage_usage(self, contract, optimizations: List[Dict]):
+        seen_packed = set()
+
+        # improve:  i think this ocde is redundant and hard coded so might need some refactoring for it.
+        for variable in contract.state_variables:
+            try:
+                if getattr(variable, "is_constant", False) or getattr(variable, "is_immutable", False):
+                    continue
+
+                if hasattr(variable.type, "is_dynamic") and variable.type.is_dynamic:
+                    optimizations.append(
+                        {
+                            "type": "storage",
+                            "description": f"Review if dynamic type {variable.type} for {variable.name} is necessary. Use fixed-size types if possible.",
+                            "impact": "Medium",
+                            "location": variable.source_mapping,
+                        }
+                    )
+
+                if getattr(variable, "visibility", "") == "public":
+                    optimizations.append(
+                        {
+                            "type": "visibility",
+                            "description": f"Variable {variable.name} is public. Consider internal/private if external access is unnecessary.",
+                            "impact": "Low",
+                            "location": variable.source_mapping,
+                        }
+                    )
+
+                references = getattr(variable, "references", [])
+                if len(references) == 0:
+                    optimizations.append(
+                        {
+                            "type": "unused",
+                            "description": f"Variable {variable.name} is never used. Remove to save gas.",
+                            "impact": "Low",
+                            "location": variable.source_mapping,
+                        }
+                    )
+
+                write_refs = [ref for ref in references if getattr(ref, "is_write", False)]
+                if len(write_refs) == 1:
+                    optimizations.append(
+                        {
+                            "type": "immutability",
+                            "description": f"Variable {variable.name} is written only once. Consider making it immutable or constant.",
+                            "impact": "Medium",
+                            "location": variable.source_mapping,
+                        }
+                    )
+
+            except Exception as e:
+                print(f"[Warning] Skipping variable {getattr(variable, 'name', 'unknown')} due to error: {str(e)}")
+
+        try:
+            value_vars = [
+                v for v in contract.state_variables
+                if hasattr(v, "type")
+                and getattr(v.type, "is_value_type", False)
+                and not getattr(v, "is_constant", False)
+            ]
 
 
-    
+            #code suggestion by gpt: might cause errors 
+            for i, var1 in enumerate(value_vars):
+                for var2 in value_vars[i + 1:]:
+                    try:
+                        name_pair = tuple(sorted([var1.name, var2.name]))
+                        if name_pair in seen_packed:
+                            continue
+                        total_size = getattr(var1.type, "size", 0) + getattr(var2.type, "size", 0)
+                        if total_size <= 32:
+                            optimizations.append(
+                                {
+                                    "type": "storage_packing",
+                                    "description": f"Consider packing {var1.name} and {var2.name} in the same storage slot.",
+                                    "impact": "High",
+                                    "location": var1.source_mapping,
+                                }
+                            )
+                            seen_packed.add(name_pair)
+                    except Exception as e:
+                        print(f"[Storage Packing Warning] Failed on vars {var1.name}, {var2.name}: {e}")
+        except Exception as e:
+            print(f"[Critical] Storage packing analysis failed: {e}")

@@ -19,4 +19,11 @@ Now that we have our files we now perform
     - Slither
     - (will try if we can use solidity: metrics in report or here)
 
-    > for this static analyzer i think another class should be used instead ?
+    > for this static analyzer i think another class should be used instead ? edit: Yes
+
+__________________________
+
+Update: -> we have files loaded, 
+        -> slither analyzed those files, and that data is stored.
+        -> we should now analyze the contracts for gas optimization .. 
+                            -> which includes (storage usage, loops, function visibility etc.)
