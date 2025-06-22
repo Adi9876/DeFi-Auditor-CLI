@@ -54,6 +54,8 @@ class DefiAuditor:
                     source_code, compiler_version, self.chain
                 )
                 vulnerabilities = self.static_analyzer.analyze_vulnerabilities()
+                # optimizations = self.static_analyzer.analyze_gas_optimization()
+
 
         except:
             print("error")

@@ -27,3 +27,7 @@ Update: -> we have files loaded,
         -> slither analyzed those files, and that data is stored.
         -> we should now analyze the contracts for gas optimization .. 
                             -> which includes (storage usage, loops, function visibility etc.)
+
+__________________________
+
+Update: -> Adding more operations under gas optimization until AI part not decided properly.

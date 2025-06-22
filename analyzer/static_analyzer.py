@@ -94,8 +94,45 @@ class StaticAnalyzer:
         for contract in self.slither.contracts:
 
             self._analyze_storage_usage(contract, optimizations)
+            self._analyze_loops(contract,optimizations)
 
         return optimizations
+
+    def _analyze_loops(self, contract, optimizations: List[Dict]):
+        for function in contract.functions:
+            nodes = function.nodes
+            i = 0
+            while i < len(nodes):
+                node = nodes[i]
+                if "IFLOOP" in str(node.type):
+                    loop_body_nodes = []
+                    i += 1
+                    while i < len(nodes) and "ENDLOOP" not in str(nodes[i].type):
+                        loop_body_nodes.append(nodes[i])
+                        i += 1
+                    storage_access = False
+                    for body_node in loop_body_nodes:
+                        if hasattr(body_node, "variables"):
+                            for var in body_node.variables:
+                                if getattr(var, "is_storage", False):
+                                    storage_access = True
+                                    break
+                        if hasattr(body_node, "expression") and body_node.expression is not None:
+                            for state_var in contract.state_variables:
+                                if state_var.name in str(body_node.expression):
+                                    storage_access = True
+                                    break
+                        if storage_access:
+                            break
+                    if storage_access:
+                        optimizations.append({
+                            "type": "loop",
+                            "description": f"Consider caching storage variable in memory for loop in {function.name}",
+                            "impact": "High",
+                            "location": node.source_mapping
+                        })
+                else:
+                    i += 1
 
     def _analyze_storage_usage(self, contract, optimizations: List[Dict]):
         seen_packed = set()
