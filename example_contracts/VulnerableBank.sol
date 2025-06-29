@@ -17,6 +17,8 @@ contract VulnerableBank {
         (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether");
 
+        uint256 val = normalGetter();
+
         balances[msg.sender] -= _amount;
     }
 
@@ -35,5 +37,10 @@ contract VulnerableBank {
         // No access control or validation
         (bool success, ) = _target.delegatecall(_data);
         require(success, "Delegatecall failed");
+    }
+
+    // for interanl calls >
+    function normalGetter() internal pure returns(uint256) {
+        return 10;
     }
 }

@@ -31,3 +31,13 @@ Update: -> we have files loaded,
 __________________________
 
 Update: -> Adding more operations under gas optimization until AI part not decided properly.
+
+__________________________
+
+Update -> for function calls.
+        Folowign are the category i was able to find for simpler optimization
+        public → external: When functions aren't called internally
+        internal → private: When functions aren't used by derived contracts
+        unused functions: Functions that aren't called anywhere
+        view/Pure: functions that don't modify state
+        unnecessary payable: Payable functions that don't handle Ether

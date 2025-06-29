@@ -93,8 +93,9 @@ class StaticAnalyzer:
         optimizations = []
         for contract in self.slither.contracts:
 
-            self._analyze_storage_usage(contract, optimizations)
-            self._analyze_loops(contract,optimizations)
+            # self._analyze_storage_usage(contract, optimizations)
+            # self._analyze_loops(contract, optimizations)
+            self._analyze_function_visibility(contract,optimizations)
 
         return optimizations
 
@@ -117,7 +118,10 @@ class StaticAnalyzer:
                                 if getattr(var, "is_storage", False):
                                     storage_access = True
                                     break
-                        if hasattr(body_node, "expression") and body_node.expression is not None:
+                        if (
+                            hasattr(body_node, "expression")
+                            and body_node.expression is not None
+                        ):
                             for state_var in contract.state_variables:
                                 if state_var.name in str(body_node.expression):
                                     storage_access = True
@@ -125,12 +129,14 @@ class StaticAnalyzer:
                         if storage_access:
                             break
                     if storage_access:
-                        optimizations.append({
-                            "type": "loop",
-                            "description": f"Consider caching storage variable in memory for loop in {function.name}",
-                            "impact": "High",
-                            "location": node.source_mapping
-                        })
+                        optimizations.append(
+                            {
+                                "type": "loop",
+                                "description": f"Consider caching storage variable in memory for loop in {function.name}",
+                                "impact": "High",
+                                "location": node.source_mapping,
+                            }
+                        )
                 else:
                     i += 1
 
@@ -140,7 +146,9 @@ class StaticAnalyzer:
         # improve:  i think this ocde is redundant and hard coded so might need some refactoring for it.
         for variable in contract.state_variables:
             try:
-                if getattr(variable, "is_constant", False) or getattr(variable, "is_immutable", False):
+                if getattr(variable, "is_constant", False) or getattr(
+                    variable, "is_immutable", False
+                ):
                     continue
 
                 if hasattr(variable.type, "is_dynamic") and variable.type.is_dynamic:
@@ -174,7 +182,9 @@ class StaticAnalyzer:
                         }
                     )
 
-                write_refs = [ref for ref in references if getattr(ref, "is_write", False)]
+                write_refs = [
+                    ref for ref in references if getattr(ref, "is_write", False)
+                ]
                 if len(write_refs) == 1:
                     optimizations.append(
                         {
@@ -186,25 +196,29 @@ class StaticAnalyzer:
                     )
 
             except Exception as e:
-                print(f"[Warning] Skipping variable {getattr(variable, 'name', 'unknown')} due to error: {str(e)}")
+                print(
+                    f"[Warning] Skipping variable {getattr(variable, 'name', 'unknown')} due to error: {str(e)}"
+                )
 
         try:
             value_vars = [
-                v for v in contract.state_variables
+                v
+                for v in contract.state_variables
                 if hasattr(v, "type")
                 and getattr(v.type, "is_value_type", False)
                 and not getattr(v, "is_constant", False)
             ]
 
-
-            #code suggestion by gpt: might cause errors 
+            # code suggestion by gpt: might cause errors
             for i, var1 in enumerate(value_vars):
-                for var2 in value_vars[i + 1:]:
+                for var2 in value_vars[i + 1 :]:
                     try:
                         name_pair = tuple(sorted([var1.name, var2.name]))
                         if name_pair in seen_packed:
                             continue
-                        total_size = getattr(var1.type, "size", 0) + getattr(var2.type, "size", 0)
+                        total_size = getattr(var1.type, "size", 0) + getattr(
+                            var2.type, "size", 0
+                        )
                         if total_size <= 32:
                             optimizations.append(
                                 {
@@ -216,6 +230,74 @@ class StaticAnalyzer:
                             )
                             seen_packed.add(name_pair)
                     except Exception as e:
-                        print(f"[Storage Packing Warning] Failed on vars {var1.name}, {var2.name}: {e}")
+                        print(
+                            f"[Storage Packing Warning] Failed on vars {var1.name}, {var2.name}: {e}"
+                        )
         except Exception as e:
             print(f"[Critical] Storage packing analysis failed: {e}")
+
+    # def _analyze_function_visibility(self, contract, optimizations: List[Dict]):
+    #     # this could potentailly help us in optimization but it is currently limited i feel something is missing.
+
+    #     for function in contract.functions:
+    #         print("All the functions in contract.functions --> ",function, " is ",function.visibility)
+    #         print("call name:",function.internal_calls)
+    #         # if function.visibility == "public" and not function.is_constructor:
+    #         #     if not any(call.name == function.name for call in function.internal_calls):
+    #         #         optimizations.append({
+    #         #             "type": "visibility",
+    #         #             "description": f"Consider changing {function.name} visibility to external",
+    #         #             "impact": "Low",
+    #         #             "location": function.source_mapping
+    #         #         })
+
+
+
+
+    def _analyze_function_visibility(self, contract, optimizations: List[Dict]):
+
+        internal_calls = set()
+        for function in contract.functions:
+            for call in function.internal_calls:
+                if hasattr(call, 'name'):
+                    internal_calls.add(call.name)
+        
+        for function in contract.functions:
+
+    #          print("All the functions in contract.functions --> ",function, " is ",function.visibility)
+    #          print("call name:",function.internal_calls)
+
+            if (function.is_constructor or function.is_fallback or function.is_receive): # we can skip these for now
+                continue
+            
+            if function.visibility == "public":
+                is_called_internally = (
+                    function.name in internal_calls or
+                    any(function.name in [call.name for call in other_func.internal_calls if hasattr(call, 'name')] 
+                        for other_func in contract.functions if other_func != function)
+                )
+                
+                if not is_called_internally and not getattr(function, 'is_override', False):
+                    optimizations.append({
+                        "type": "visibility",
+                        "description": f"Consider changing {function.name} visibility to external",
+                        "impact": "Low",
+                        "location": function.source_mapping
+                    })
+            
+            elif function.visibility == "internal":
+                # Check if function is only used within current contract
+                is_used_by_derived = any(
+                    function.name in [f.name for f in derived.functions] 
+                    for derived in contract.derived_contracts
+                )
+                
+                if not is_used_by_derived and not getattr(function, 'is_override', False):
+                    optimizations.append({
+                        "type": "visibility",
+                        "description": f"Consider changing {function.name} visibility to private",
+                        "impact": "Low",
+                        "location": function.source_mapping
+                    })
+            
+            
