@@ -236,23 +236,6 @@ class StaticAnalyzer:
         except Exception as e:
             print(f"[Critical] Storage packing analysis failed: {e}")
 
-    # def _analyze_function_visibility(self, contract, optimizations: List[Dict]):
-    #     # this could potentailly help us in optimization but it is currently limited i feel something is missing.
-
-    #     for function in contract.functions:
-    #         print("All the functions in contract.functions --> ",function, " is ",function.visibility)
-    #         print("call name:",function.internal_calls)
-    #         # if function.visibility == "public" and not function.is_constructor:
-    #         #     if not any(call.name == function.name for call in function.internal_calls):
-    #         #         optimizations.append({
-    #         #             "type": "visibility",
-    #         #             "description": f"Consider changing {function.name} visibility to external",
-    #         #             "impact": "Low",
-    #         #             "location": function.source_mapping
-    #         #         })
-
-
-
 
     def _analyze_function_visibility(self, contract, optimizations: List[Dict]):
 
@@ -300,4 +283,19 @@ class StaticAnalyzer:
                         "location": function.source_mapping
                     })
             
+            if function.visibility in ["private", "internal"]:
+                is_function_used = (
+                    function.name in internal_calls or
+                    any(call.name == function.name for other_func in contract.functions 
+                        for call in other_func.internal_calls if hasattr(call, 'name') and other_func != function)
+                )
+                
+                if not is_function_used and not function.is_override:
+                    optimizations.append({
+                        "type": "visibility",
+                        "description": f"Function {function.name} appears unused and could be removed",
+                        "impact": "Medium",
+                        "location": function.source_mapping
+                    })
             
+           
