@@ -41,3 +41,9 @@ Update -> for function calls.
         unused functions: Functions that aren't called anywhere
         view/Pure: functions that don't modify state
         unnecessary payable: Payable functions that don't handle Ether
+
+__________________________
+Update -> finally decided to move ahead with agentic flow 
+        Also passing this extra information fetched until now related to optimizations
+        building it
+        

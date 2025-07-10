@@ -111,29 +111,29 @@ class DefiAuditor:
     #     except Exception as e:
     #         print(f"Error here", str(e))
 
-    async def test_gas_optimizer(self, paths: List[str]) -> None:
-        try:
-            all_contract_files = []
-            for path in paths:
-                all_contract_files.extend(self._get_contract_files(path))
+    # async def test_gas_optimizer(self, paths: List[str]) -> None:
+    #     try:
+    #         all_contract_files = []
+    #         for path in paths:
+    #             all_contract_files.extend(self._get_contract_files(path))
 
-            if not all_contract_files:
-                print("No contract files found in the specified paths")
-                return
+    #         if not all_contract_files:
+    #             print("No contract files found in the specified paths")
+    #             return
 
-            print(f"Found {len(all_contract_files)} contract files for gas optimization analysis")
+    #         print(f"Found {len(all_contract_files)} contract files for gas optimization analysis")
 
-            for contract_file in all_contract_files:
-                print(f"Running gas optimization analysis on {contract_file}...")
+    #         for contract_file in all_contract_files:
+    #             print(f"Running gas optimization analysis on {contract_file}...")
 
-                analyzer = StaticAnalyzer(contract_file, self.chain)
-                optimizations = analyzer.analyze_gas_optimization()
+    #             analyzer = StaticAnalyzer(contract_file, self.chain)
+    #             optimizations = analyzer.analyze_gas_optimization()
 
-                print(f"Gas optimization opportunities for {contract_file}:")
-                for opt in optimizations:
-                    print(f"- {opt}")
-        except Exception as e:
-            print(f"Error during gas optimization analysis: {str(e)}")
+    #             print(f"Gas optimization opportunities for {contract_file}:")
+    #             for opt in optimizations:
+    #                 print(f"- {opt}")
+    #     except Exception as e:
+    #         print(f"Error during gas optimization analysis: {str(e)}")
 
 
 ##################
@@ -165,7 +165,9 @@ async def main():
 
     # await auditor.test_analyzer(args.files)
 
-    await auditor.test_gas_optimizer(args.files)
+    # await auditor.test_gas_optimizer(args.files)
+
+    
 
     await asyncio.sleep(0.1)
 
