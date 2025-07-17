@@ -1,11 +1,14 @@
 import argparse
 import asyncio
+import json
 from typing import List
 import os
 from analyzer.static_analyzer import StaticAnalyzer
 
 
 from config.config import *
+from tools.llm_analyzer import analyze_access_control
+from tools.report_generator import finalize_report, generate_report_section
 
 
 class DefiAuditor:
@@ -62,6 +65,28 @@ class DefiAuditor:
 
 ##############
 # Testing Out Functions Here 
+    async def full_audit(self, paths: List[str], output_format: str = "html"):
+        all_contract_files = []
+        for path in paths:
+            all_contract_files.extend(self._get_contract_files(path))
+
+        if not all_contract_files:
+            print("No contract files found in the specified paths")
+            return
+
+        #  Slither output 
+        with open("slither_output.json") as f:
+            slither_issues = json.load(f)
+        optimization_notes = "\n".join(
+            [f"- {i['description']}" for i in slither_issues if i['type'] == "optimization"]
+        )
+        generate_report_section("🔧 Optimization Issues", optimization_notes)
+
+
+        # Finalize report 
+        finalize_report(output_format)
+        print(f"Audit completed! Report saved as audit_report.{output_format}")
+
 
     # async def test_file_fetch(
     #     self,
@@ -167,7 +192,7 @@ async def main():
 
     # await auditor.test_gas_optimizer(args.files)
 
-    
+    await auditor.full_audit(args.files, output_format="html")
 
     await asyncio.sleep(0.1)
 
