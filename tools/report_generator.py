@@ -7,10 +7,20 @@ def generate_report_section(title, content):
     section = f"## {title}\n\n{content}\n"
     report_sections.append(section)
 
-def finalize_report(output_format="html"):
+def finalize_report(output_format="html", output_path=None):
     full_report = "\n".join(report_sections)
+
     if output_format == "html":
         html = markdown(full_report)
-        Path("audit_report.html").write_text(html)
+
+        if not output_path:
+            output_path = "audit_report.html"
+        Path(output_path).write_text(html)
+
+    elif output_format == "md":
+        if not output_path:
+            output_path = "audit_report.md"
+        Path(output_path).write_text(full_report)
+
     else:
-        Path("audit_report.md").write_text(full_report)
+        raise ValueError("Unsupported output format. Use 'html' or 'md'.")

@@ -50,3 +50,8 @@ Update -> finally decided to move ahead with agentic flow
 __________________________
 Update -> currently testing the flow, will have to add report creation as well
        ->
+
+__________________________
+Update -> testing if some access control and severity classification can be done 
+                more efficiently using gpt itself or not.
+        -> If its yes i'll try to re-structure it a little bit
