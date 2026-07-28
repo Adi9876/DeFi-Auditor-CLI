@@ -1,9 +1,16 @@
-from openai import OpenAI
-
-client = OpenAI()
-
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
 
 def analyze_access_control(contract_code, optimzation):
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return "⚠️ GOOGLE_API_KEY environment variable not set. LLM analysis skipped."
+        
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    
     prompt = f"""
     You are a smart contract security auditor.
     Review the following Solidity contract code.
@@ -19,8 +26,8 @@ def analyze_access_control(contract_code, optimzation):
     {optimzation}
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o", messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.choices[0].message.content.strip()
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"⚠️ LLM Analysis failed: {str(e)}"

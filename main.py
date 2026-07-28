@@ -30,9 +30,6 @@ class DefiAuditor:
 
         return contract_files
 
-
-
-
     async def audit_contract_files(
         self, paths: List[str], compiler_version: str = "", output_format: str = "pdf"
     ) -> str:
@@ -74,14 +71,50 @@ class DefiAuditor:
             print("No contract files found in the specified paths")
             return
 
-        #  Slither output 
-        with open("slither_output.json") as f:
-            slither_issues = json.load(f)
-        optimization_notes = "\n".join(
-            [f"- {i['description']}" for i in slither_issues if i['type'] == "optimization"]
-        )
-        generate_report_section("🔧 Optimization Issues", optimization_notes)
+        from tools.llm_analyzer import analyze_access_control
+        from tools.report_generator import finalize_report, generate_report_section
+        from llm.severity_classifier import classify_severity
 
+        for contract_file in all_contract_files:
+            print(f"Analyzing {contract_file}...")
+
+            with open(contract_file, "r") as f:
+                source_code = f.read()
+
+            self.static_analyzer = StaticAnalyzer(
+                contract_file, self.chain
+            )
+            
+            print("Running static analysis...")
+            vulnerabilities = self.static_analyzer.analyze_vulnerabilities()
+            optimizations = self.static_analyzer.analyze_gas_optimization()
+
+            vuln_notes = []
+            for severity, vulns in vulnerabilities.items():
+                for vuln in vulns:
+                    actual_severity = classify_severity(vuln.get('description', ''))
+                    vuln_notes.append(f"- **[{actual_severity}]** {vuln.get('name', 'Issue')}: {vuln.get('description', '')}")
+
+            opt_notes = "\n".join([f"- {opt.get('description', '')}" for opt in optimizations])
+
+            print("Running LLM analysis...")
+            try:
+                llm_analysis = analyze_access_control(source_code, opt_notes)
+            except Exception as e:
+                print(f"LLM analysis failed: {str(e)}")
+                llm_analysis = f"Error during LLM analysis: {str(e)}"
+
+            generate_report_section(f"📄 File: {contract_file}", "**Analysis Results**")
+
+            if vuln_notes:
+                generate_report_section("🚨 Vulnerabilities", "\n".join(vuln_notes))
+            else:
+                generate_report_section("🚨 Vulnerabilities", "No vulnerabilities detected by static analyzer.")
+
+            if opt_notes:
+                generate_report_section("🔧 Gas Optimizations", opt_notes)
+
+            generate_report_section("🤖 LLM Access Control & Security Analysis", llm_analysis)
 
         # Finalize report 
         finalize_report(output_format)
